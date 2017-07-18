@@ -14,6 +14,11 @@ using System.Windows.Shapes;
 using System.Runtime.InteropServices.ComTypes;
 using System.ComponentModel;
 using System.Windows.Interop;
+using System.Runtime.InteropServices;
+using System.IO;
+using System.Drawing;
+using System.Threading;
+using System.Windows.Forms.Integration;
 
 namespace WebCamWPF
 {
@@ -24,7 +29,8 @@ namespace WebCamWPF
     {
         private IGraphBuilder graph;
         private ICaptureGraphBuilder2 capture;
-        
+        private SampleGrabberCallback callback;
+
         public MainWindow()
         {            
             InitializeComponent();           
@@ -50,11 +56,43 @@ namespace WebCamWPF
             IBaseFilter baseFilter = (IBaseFilter)obj;
             retVal = graph.AddFilter(baseFilter, devices.First().Key);
 
+            Guid CLSID_SampleGrabber = new Guid("{C1F400A0-3F08-11D3-9F0B-006008039E37}");
+            IBaseFilter grabber = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_SampleGrabber)) as IBaseFilter;
+            
+            var media = new AMMediaType();
+            media.MajorType = MediaType.Video;
+            media.SubType = MediaSubType.RGB24;
+            media.FormatType = FormatType.VideoInfo;
+            retVal = ((ISampleGrabber)grabber).SetMediaType(media);
 
-            retVal = capture.RenderStream(PinCategory.Preview, MediaType.Video, baseFilter, null, null);
+            object configObj;
+            retVal = capture.FindInterface(PinCategory.Capture, MediaType.Video, baseFilter, typeof(IAMStreamConfig).GUID, out configObj);
+            IAMStreamConfig config = (IAMStreamConfig)configObj;
+            
+            AMMediaType pmt;
+            retVal = config.GetFormat(out pmt);
+
+            var header = (VideoInfoHeader)Marshal.PtrToStructure(pmt.FormatPtr, typeof(VideoInfoHeader));
+            var width = header.BmiHeader.Width;
+            var height = header.BmiHeader.Height;
+            var stride = width * (header.BmiHeader.BitCount / 8);
+            callback = new SampleGrabberCallback() { Width = width, Height = height, Stride = stride };
+            retVal = ((ISampleGrabber)grabber).SetCallback(callback, 0);
+
+            retVal = graph.AddFilter(grabber, "SampleGrabber");
+
+            IPin output = GetPin(baseFilter, p => p.Name == "Capture");
+            IPin input = GetPin(grabber, p => p.Name == "Input");
+            IPin preview = GetPin(grabber, p => p.Name == "Output");            
+            //retVal = graph.ConnectDirect(output, input, pmt);
+            //retVal = graph.Connect(output, input);
+
+            retVal = capture.RenderStream(PinCategory.Preview, MediaType.Video, baseFilter, grabber, null);            
+           
 
             var wih = new WindowInteropHelper(this);
 
+            
             IVideoWindow window = (IVideoWindow)graph;
             retVal = window.put_Owner(wih.Handle);
             retVal = window.put_WindowStyle(WindowStyles.WS_CHILD | WindowStyles.WS_CLIPCHILDREN);
@@ -63,6 +101,27 @@ namespace WebCamWPF
             retVal = window.put_Visible(-1); //OATRUE
 
             retVal = control.Run();
+        }
+
+        private IPin GetPin(IBaseFilter filter, Func<PinInfo, bool> pred)
+        {
+            IEnumPins enumPins;
+            var retVal = filter.EnumPins(out enumPins);
+
+            IPin[] pins = new IPin[1];
+            int fetched;
+            while ((retVal = enumPins.Next(1, pins, out fetched)) == 0)
+            {
+                if (fetched > 0)
+                {
+                    PinInfo info = new PinInfo();
+                    retVal = pins[0].QueryPinInfo(info);
+                    if (retVal == 0 && pred(info))
+                        return pins[0];
+                }
+            }
+
+            return null;
         }
 
         private Dictionary<string, IMoniker> EnumDevices(Guid type)
@@ -104,10 +163,50 @@ namespace WebCamWPF
             if (graph != null)
             {
                 IVideoWindow window = (IVideoWindow)graph;
-                var retVal = window.SetWindowPosition(0, 0, (int)Width, (int)Height);
+                var retVal = window.SetWindowPosition(0, 0, (int)Width, (int)Height);                
             }
         }
     }
 
+    class SampleGrabberCallback : ISampleGrabberCB
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public int Stride { get; set; }
 
+        public readonly ManualResetEvent Trigger = new ManualResetEvent(false);
+
+        public int SampleCB(double SampleTime, IMediaSample pSample)
+        {
+            if (pSample == null)
+                return -1;
+
+            if (Trigger.WaitOne(0))
+            {
+                int len = pSample.GetActualDataLength();
+                if (len > 0)
+                {
+                    IntPtr buf;
+                    if (pSample.GetPointer(out buf) == 0)
+                    {
+                        byte[] buffer = new byte[len];
+                        Marshal.Copy(buf, buffer, 0, len);
+
+                        var bmp = new Bitmap(Width, Height, Stride, System.Drawing.Imaging.PixelFormat.Format24bppRgb, buf);
+                        bmp.Save("e:\\work\\test.png", System.Drawing.Imaging.ImageFormat.Png);
+                    }
+                }
+                Trigger.Reset();
+            }
+
+            Marshal.ReleaseComObject(pSample);
+
+            return 0;
+        }
+
+        public int BufferCB(double SampleTime, IntPtr pBuffer, int BufferLen)
+        {
+            return 0;
+        }
+    }
 }

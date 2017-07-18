@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using System.Drawing;
+using System.Security;
 
 namespace WebCamWPF
 {
@@ -860,5 +862,206 @@ namespace WebCamWPF
 
         [PreserveSig]
         int SetMediaTime([In, MarshalAs(UnmanagedType.LPStruct)] long? pTimeStart, [In, MarshalAs(UnmanagedType.LPStruct)] long? pTimeEnd);
+    }
+
+    public static class FormatType
+    {
+        public static readonly Guid Null = Guid.Empty;
+
+        public static readonly Guid None = new Guid(0x0F6417D6, 0xc318, 0x11d0, 0xa4, 0x3f, 0x00, 0xa0, 0xc9, 0x22, 0x31, 0x96);
+        public static readonly Guid VideoInfo = new Guid(0x05589f80, 0xc356, 0x11ce, 0xbf, 0x01, 0x00, 0xaa, 0x00, 0x55, 0x59, 0x5a);
+        public static readonly Guid VideoInfo2 = new Guid(0xf72a76A0, 0xeb0a, 0x11d0, 0xac, 0xe4, 0x00, 0x00, 0xc0, 0xcc, 0x16, 0xba);
+        public static readonly Guid WaveEx = new Guid(0x05589f81, 0xc356, 0x11ce, 0xbf, 0x01, 0x00, 0xaa, 0x00, 0x55, 0x59, 0x5a);
+        public static readonly Guid MpegVideo = new Guid(0x05589f82, 0xc356, 0x11ce, 0xbf, 0x01, 0x00, 0xaa, 0x00, 0x55, 0x59, 0x5a);
+        public static readonly Guid MpegStreams = new Guid(0x05589f83, 0xc356, 0x11ce, 0xbf, 0x01, 0x00, 0xaa, 0x00, 0x55, 0x59, 0x5a);
+        public static readonly Guid DvInfo = new Guid(0x05589f84, 0xc356, 0x11ce, 0xbf, 0x01, 0x00, 0xaa, 0x00, 0x55, 0x59, 0x5a);
+        public static readonly Guid AnalogVideo = new Guid(0x0482dde0, 0x7817, 0x11cf, 0x8a, 0x03, 0x00, 0xaa, 0x00, 0x6e, 0xcb, 0x65);
+        public static readonly Guid Mpeg2Video = new Guid(0xe06d80e3, 0xdb46, 0x11cf, 0xb4, 0xd1, 0x00, 0x80, 0x5f, 0x6c, 0xbb, 0xea);
+        public static readonly Guid DolbyAC3 = new Guid(0xe06d80e4, 0xdb46, 0x11cf, 0xb4, 0xd1, 0x00, 0x80, 0x5f, 0x6c, 0xbb, 0xea);
+        public static readonly Guid Mpeg2Audio = new Guid(0xe06d80e5, 0xdb46, 0x11cf, 0xb4, 0xd1, 0x00, 0x80, 0x5f, 0x6c, 0xbb, 0xea);
+        public static readonly Guid WSS525 = new Guid(0xc7ecf04d, 0x4582, 0x4869, 0x9a, 0xbb, 0xbf, 0xb5, 0x23, 0xb6, 0x2e, 0xdf);
+        public static readonly Guid ETDTFilter_Tagged = new Guid(0xC4C4C4D1, 0x0049, 0x4E2B, 0x98, 0xFB, 0x95, 0x37, 0xF6, 0xCE, 0x51, 0x6D);
+        public static readonly Guid CPFilters_Processed = new Guid(0x6739b36f, 0x1d5f, 0x4ac2, 0x81, 0x92, 0x28, 0xbb, 0xe, 0x73, 0xd1, 0x6a);
+    }
+
+    public class DsRect
+    {
+        public int left;
+
+        public int top;
+
+        public int right;
+
+        public int bottom;
+
+        /// <summary>
+        /// Empty contructor. Initialize all fields to 0
+        /// </summary>
+        public DsRect()
+        {
+            this.left = 0;
+            this.top = 0;
+            this.right = 0;
+            this.bottom = 0;
+        }
+
+        /// <summary>
+        /// A parametred constructor. Initialize fields with given values.
+        /// </summary>
+        /// <param name="left">the left value</param>
+        /// <param name="top">the top value</param>
+        /// <param name="right">the right value</param>
+        /// <param name="bottom">the bottom value</param>
+        public DsRect(int left, int top, int right, int bottom)
+        {
+            this.left = left;
+            this.top = top;
+            this.right = right;
+            this.bottom = bottom;
+        }
+
+        /// <summary>
+        /// A parametred constructor. Initialize fields with a given <see cref="System.Drawing.Rectangle"/>.
+        /// </summary>
+        /// <param name="rectangle">A <see cref="System.Drawing.Rectangle"/></param>
+        /// <remarks>
+        /// Warning, DsRect define a rectangle by defining two of his corners and <see cref="System.Drawing.Rectangle"/> define a rectangle with his upper/left corner, his width and his height.
+        /// </remarks>
+        public DsRect(Rectangle rectangle)
+        {
+            this.left = rectangle.Left;
+            this.top = rectangle.Top;
+            this.right = rectangle.Right;
+            this.bottom = rectangle.Bottom;
+        }
+
+        /// <summary>
+        /// Provide de string representation of this DsRect instance
+        /// </summary>
+        /// <returns>A string formated like this : [left, top - right, bottom]</returns>
+        public override string ToString()
+        {
+            return string.Format("[{0}, {1} - {2}, {3}]", this.left, this.top, this.right, this.bottom);
+        }
+
+        public override int GetHashCode()
+        {
+            return this.left.GetHashCode() | this.top.GetHashCode() | this.right.GetHashCode()
+                   | this.bottom.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is DsRect)
+            {
+                DsRect cmp = (DsRect)obj;
+
+                return right == cmp.right && bottom == cmp.bottom && left == cmp.left && top == cmp.top;
+            }
+
+            if (obj is Rectangle)
+            {
+                Rectangle cmp = (Rectangle)obj;
+
+                return right == cmp.Right && bottom == cmp.Bottom && left == cmp.Left && top == cmp.Top;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Define implicit cast between DirectShowLib.DsRect and System.Drawing.Rectangle for languages supporting this feature.
+        /// VB.Net doesn't support implicit cast. <see cref="DirectShowLib.DsRect.ToRectangle"/> for similar functionality.
+        /// <code>
+        ///   // Define a new Rectangle instance
+        ///   Rectangle r = new Rectangle(0, 0, 100, 100);
+        ///   // Do implicit cast between Rectangle and DsRect
+        ///   DsRect dsR = r;
+        ///
+        ///   Console.WriteLine(dsR.ToString());
+        /// </code>
+        /// </summary>
+        /// <param name="r">a DsRect to be cast</param>
+        /// <returns>A casted System.Drawing.Rectangle</returns>
+        public static implicit operator Rectangle(DsRect r)
+        {
+            return r.ToRectangle();
+        }
+
+        public static implicit operator RECT(DsRect r)
+        {
+            return r.ToRECT();
+        }
+
+        /// <summary>
+        /// Define implicit cast between System.Drawing.Rectangle and DirectShowLib.DsRect for languages supporting this feature.
+        /// VB.Net doesn't support implicit cast. <see cref="DirectShowLib.DsRect.FromRectangle"/> for similar functionality.
+        /// <code>
+        ///   // Define a new DsRect instance
+        ///   DsRect dsR = new DsRect(0, 0, 100, 100);
+        ///   // Do implicit cast between DsRect and Rectangle
+        ///   Rectangle r = dsR;
+        ///
+        ///   Console.WriteLine(r.ToString());
+        /// </code>
+        /// </summary>
+        /// <param name="r">A System.Drawing.Rectangle to be cast</param>
+        /// <returns>A casted DsRect</returns>
+        public static implicit operator DsRect(Rectangle r)
+        {
+            return new DsRect(r);
+        }
+
+        /// <summary>
+        /// Get the System.Drawing.Rectangle equivalent to this DirectShowLib.DsRect instance.
+        /// </summary>
+        /// <returns>A System.Drawing.Rectangle</returns>
+        public Rectangle ToRectangle()
+        {
+            return new Rectangle(this.left, this.top, (this.right - this.left), (this.bottom - this.top));
+        }
+
+        public RECT ToRECT()
+        {
+            return new RECT()
+            {
+                Left = this.left,
+                Top = this.top,
+                Right = this.right,
+                Bottom = this.bottom
+            };
+        }
+
+        /// <summary>
+        /// Get a new DirectShowLib.DsRect instance for a given <see cref="System.Drawing.Rectangle"/>
+        /// </summary>
+        /// <param name="r">The <see cref="System.Drawing.Rectangle"/> used to initialize this new DirectShowLib.DsGuid</param>
+        /// <returns>A new instance of DirectShowLib.DsGuid</returns>
+        public static DsRect FromRectangle(Rectangle r)
+        {
+            return new DsRect(r);
+        }
+    }
+
+    [ComImport, SuppressUnmanagedCodeSecurity,
+    Guid("C6E13340-30AC-11d0-A18C-00A0C9118956"),
+    InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IAMStreamConfig
+    {
+        [PreserveSig]
+        int SetFormat([In, MarshalAs(UnmanagedType.LPStruct)] AMMediaType pmt);
+
+        [PreserveSig]
+        int GetFormat([Out] out AMMediaType pmt);
+
+        [PreserveSig]
+        int GetNumberOfCapabilities(out int piCount, out int piSize);
+
+        [PreserveSig]
+        int GetStreamCaps(
+            [In] int iIndex,
+            [Out] out AMMediaType ppmt,
+            [In] IntPtr pSCC
+            );
     }
 }
