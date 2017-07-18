@@ -87,17 +87,18 @@ namespace WebCamWPF
             //retVal = graph.ConnectDirect(output, input, pmt);
             //retVal = graph.Connect(output, input);
 
-            retVal = capture.RenderStream(PinCategory.Preview, MediaType.Video, baseFilter, grabber, null);            
-           
+            retVal = capture.RenderStream(PinCategory.Preview, MediaType.Video, baseFilter, grabber, null);
 
-            var wih = new WindowInteropHelper(this);
+
+            //var wih = new WindowInteropHelper(this);
+            var panel = FindName("PART_VideoPanel") as System.Windows.Forms.Panel;
 
             
             IVideoWindow window = (IVideoWindow)graph;
-            retVal = window.put_Owner(wih.Handle);
+            retVal = window.put_Owner(panel.Handle);
             retVal = window.put_WindowStyle(WindowStyles.WS_CHILD | WindowStyles.WS_CLIPCHILDREN);
-            retVal = window.SetWindowPosition(0, 0, (int)Width, (int)Height);
-            retVal = window.put_MessageDrain(wih.Handle);
+            retVal = window.SetWindowPosition(0, 0, (int)panel.ClientSize.Width, (int)panel.ClientSize.Height);
+            retVal = window.put_MessageDrain(panel.Handle);
             retVal = window.put_Visible(-1); //OATRUE
 
             retVal = control.Run();
@@ -162,9 +163,15 @@ namespace WebCamWPF
         {
             if (graph != null)
             {
+                var panel = FindName("PART_VideoPanel") as System.Windows.Forms.Panel;
                 IVideoWindow window = (IVideoWindow)graph;
-                var retVal = window.SetWindowPosition(0, 0, (int)Width, (int)Height);                
+                var retVal = window.SetWindowPosition(0, 0, (int)panel.ClientSize.Width, (int)panel.ClientSize.Height);
             }
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            callback?.Trigger?.Set();
         }
     }
 
@@ -193,7 +200,10 @@ namespace WebCamWPF
                         Marshal.Copy(buf, buffer, 0, len);
 
                         var bmp = new Bitmap(Width, Height, Stride, System.Drawing.Imaging.PixelFormat.Format24bppRgb, buf);
+                        bmp.RotateFlip(RotateFlipType.Rotate180FlipX);
                         bmp.Save("e:\\work\\test.png", System.Drawing.Imaging.ImageFormat.Png);
+
+
                     }
                 }
                 Trigger.Reset();

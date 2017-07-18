@@ -12,6 +12,6 @@
         <WindowsFormsHost Grid.Column="0">
             <wf:Panel x:Name="PART_VideoPanel"/>
         </WindowsFormsHost>
-        <Button Grid.Column="1" Width="100" Height="30" Content="Snap!"/>
+        <Button Grid.Column="1" Width="100" Height="30" Content="Snap!" Click="Button_Click"/>
     </Grid>
 </Window>
